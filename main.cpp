@@ -65,6 +65,9 @@ private:
     double duration = 0.0;
     int originalWidth = 16;
     int originalHeight = 9;
+    int displayWidth = 16;
+    int displayHeight = 9;
+    int rotationDegrees = 0;
     bool hasAudio = false;
     bool isSwapped = false;
     bool updatingBounds = false;
@@ -332,7 +335,7 @@ private:
 
         inputPath = path;
         fileLabel->setText(QFileInfo(path).fileName());
-        cropBottomSpin->setRange(0, qMax(0, originalHeight - 3));
+        cropBottomSpin->setRange(0, qMax(0, displayHeight - 3));
         trimStartSpin->setMaximum(duration);
         trimEndSpin->setMaximum(duration);
         setControlsEnabled(true);
@@ -353,6 +356,8 @@ private:
         QRegularExpression durationRe("Duration:\\s*(\\d+):(\\d+):(\\d+(?:\\.\\d+)?)");
         QRegularExpression fpsRe("(\\d+(?:\\.\\d+)?)\\s*fps");
         QRegularExpression sizeRe("Video:.*?(\\d{2,5})x(\\d{2,5})");
+        QRegularExpression rotateTagRe("rotate\\s*:\\s*(-?\\d+)");
+        QRegularExpression displayMatrixRe("rotation of\\s*(-?\\d+(?:\\.\\d+)?)\\s*degrees");
 
         auto durationMatch = durationRe.match(output);
         auto fpsMatch = fpsRe.match(output);
@@ -371,6 +376,18 @@ private:
         }
         originalWidth = sizeMatch.captured(1).toInt();
         originalHeight = qMax(1, sizeMatch.captured(2).toInt());
+        rotationDegrees = 0;
+        auto rotateTagMatch = rotateTagRe.match(output);
+        auto displayMatrixMatch = displayMatrixRe.match(output);
+        if (rotateTagMatch.hasMatch()) {
+            rotationDegrees = rotateTagMatch.captured(1).toInt();
+        } else if (displayMatrixMatch.hasMatch()) {
+            rotationDegrees = static_cast<int>(std::round(displayMatrixMatch.captured(1).toDouble()));
+        }
+        rotationDegrees = ((rotationDegrees % 360) + 360) % 360;
+        const bool rotatedSideways = rotationDegrees == 90 || rotationDegrees == 270;
+        displayWidth = rotatedSideways ? originalHeight : originalWidth;
+        displayHeight = rotatedSideways ? originalWidth : originalHeight;
         totalFrames = qMax(1, static_cast<int>(std::round(duration * fps)));
         hasAudio = output.contains("Audio:", Qt::CaseInsensitive);
         return true;
@@ -381,8 +398,8 @@ private:
         const int cropBottom = cropBottomSpin ? cropBottomSpin->value() : 0;
         const int offset = windowOffsetSpin ? qAbs(windowOffsetSpin->value()) : 0;
         const int borderWidth = borderWidthSpin ? borderWidthSpin->value() : 0;
-        const int adjustedWidth = qMax(1, originalWidth - offset + borderWidth * 2);
-        const int adjustedHeight = qMax(1, originalHeight - cropBottom + borderWidth * 2);
+        const int adjustedWidth = qMax(1, displayWidth - offset + borderWidth * 2);
+        const int adjustedHeight = qMax(1, displayHeight - cropBottom + borderWidth * 2);
         const double aspect = static_cast<double>(adjustedWidth) / adjustedHeight;
         const int height1 = 600;
         const int width1 = static_cast<int>(height1 * aspect);
@@ -589,7 +606,7 @@ private:
             QMessageBox::critical(this, "Error", "Please select a video file first.");
             return;
         }
-        if (cropBottomSpin->value() >= originalHeight - 2) {
+        if (cropBottomSpin->value() >= displayHeight - 2) {
             QMessageBox::critical(this, "Error", "Please enter a valid bottom crop in pixels. It must be less than the video height.");
             return;
         }
