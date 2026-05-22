@@ -34,9 +34,10 @@ Example build using the Qt installation layout used during development:
 $env:Path='D:\Qt\6.11.0\mingw_64\bin;D:\Qt\Tools\mingw1310_64\bin;D:\Qt\Tools\Ninja;' + $env:Path
 & 'D:\Qt\Tools\CMake_64\bin\cmake.exe' -S . -B build-qt -G Ninja -DCMAKE_PREFIX_PATH='D:\Qt\6.11.0\mingw_64' -DCMAKE_BUILD_TYPE=Release
 & 'D:\Qt\Tools\CMake_64\bin\cmake.exe' --build build-qt --config Release
-& 'D:\Qt\6.11.0\mingw_64\bin\windeployqt.exe' --release .\build-qt\StereoCropTrimQt.exe
+& 'D:\Qt\6.11.0\mingw_64\bin\windeployqt.exe' --release .\build-qt\3DMovingStereo.exe
 ```
 
 ## License
 
 MIT License. See [LICENSE](LICENSE).
+
