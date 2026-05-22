@@ -1,5 +1,7 @@
 # 3D Moving Stereo Video Creator
 
+![3D Moving Stereo Video Creator screenshot](Screenshot.jpg)
+
 3D Moving Stereo Video Creator is a native Windows Qt application for converting suitable moving-camera video into 3D video output.
 
 It is mainly intended for video captured from a moving train or car while the camera is kept steady, without horizontal shifting or tilting left or right. By taking the left and right eye views from frames separated by a configurable skip value, the app can simulate a stereo camera effect when the scene has stable motion and not too many fast moving objects.
