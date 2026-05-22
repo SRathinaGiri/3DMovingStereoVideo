@@ -143,8 +143,8 @@ private:
 
         swapButton = new QPushButton("<-> Swap to Cross-Eye View");
         aboutButton = new QPushButton("About");
-        halfWidthCheck = new QCheckBox("Create Half-Width (SBS) Video for 3D TVs");
-        anaglyphCheck = new QCheckBox("Create Anaglyph Video");
+        halfWidthCheck = new QCheckBox("Half-Width SBS");
+        anaglyphCheck = new QCheckBox("Anaglyph");
         startButton = new QPushButton("Create Stereo Video");
         QFont startFont = startButton->font();
         startFont.setBold(true);
@@ -175,13 +175,15 @@ private:
 
         col = 0;
         controlsLayout->addWidget(new QLabel("BGM:"), 2, col++, Qt::AlignRight);
-        controlsLayout->addWidget(bgmLabel, 2, col++, 1, 5);
+        controlsLayout->addWidget(bgmLabel, 2, col, 1, 4);
+        col += 4;
         controlsLayout->addWidget(bgmBrowseButton, 2, col++);
         controlsLayout->addWidget(bgmClearButton, 2, col++);
-        controlsLayout->addWidget(halfWidthCheck, 2, col++, 1, 2);
-        controlsLayout->addWidget(anaglyphCheck, 2, col++, 1, 2);
+        controlsLayout->addWidget(halfWidthCheck, 2, col++);
+        controlsLayout->addWidget(anaglyphCheck, 2, col++);
         controlsLayout->addWidget(aboutButton, 2, col++);
-        controlsLayout->addWidget(startButton, 2, col++, 1, 2);
+        controlsLayout->addWidget(startButton, 2, col, 1, 2);
+        col += 2;
         controlsLayout->setColumnStretch(1, 1);
         mainLayout->addLayout(controlsLayout);
 
