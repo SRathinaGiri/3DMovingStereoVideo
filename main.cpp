@@ -10,7 +10,7 @@ public:
     {
         setWindowTitle("3D Moving Stereo Video Creator");
         setWindowIcon(QIcon(":/icons/app_icon.svg"));
-        setMinimumSize(760, 820);
+        setMinimumSize(1280, 760);
 
         ffmpegPath = QStandardPaths::findExecutable("ffmpeg");
         if (ffmpegPath.isEmpty() && QFileInfo::exists("D:/stereo/ffmpeg.exe")) {
@@ -99,78 +99,46 @@ private:
         slider->setRange(0, 100);
         mainLayout->addWidget(slider);
 
-        auto *skipLayout = new QHBoxLayout;
-        skipLayout->setAlignment(Qt::AlignCenter);
-        skipLayout->addWidget(new QLabel("Frames to Skip:"));
+        auto *controlsLayout = new QGridLayout;
+        controlsLayout->setHorizontalSpacing(10);
+        controlsLayout->setVerticalSpacing(6);
+
         skipSpin = new QSpinBox;
         skipSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         skipSpin->setRange(0, 1000000);
         skipSpin->setValue(5);
-        skipSpin->setFixedWidth(90);
-        skipLayout->addWidget(skipSpin);
-        mainLayout->addLayout(skipLayout);
+        skipSpin->setFixedWidth(76);
 
-        auto *editGroup = new QGroupBox("Crop and Trim");
-        auto *editLayout = new QGridLayout(editGroup);
         cropBottomSpin = new QSpinBox;
         cropBottomSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         cropBottomSpin->setRange(0, 1000000);
-        cropBottomSpin->setFixedWidth(100);
+        cropBottomSpin->setFixedWidth(82);
         trimStartButton = new QPushButton("Cut from front");
         trimEndButton = new QPushButton("Cut from end");
         trimStartSpin = makeSecondsSpin();
         trimEndSpin = makeSecondsSpin();
-        editLayout->addWidget(new QLabel("Crop bottom (pixels):"), 0, 0, Qt::AlignRight);
-        editLayout->addWidget(cropBottomSpin, 0, 1);
-        editLayout->addWidget(trimStartButton, 0, 2, Qt::AlignRight);
-        editLayout->addWidget(trimStartSpin, 0, 3);
-        editLayout->addWidget(trimEndButton, 0, 4, Qt::AlignRight);
-        editLayout->addWidget(trimEndSpin, 0, 5);
-        for (int col = 0; col < 6; ++col) {
-            editLayout->setColumnStretch(col, 1);
-        }
-        mainLayout->addWidget(editGroup);
 
-        auto *bgmLayout = new QHBoxLayout;
         bgmLabel = new QLabel("No BGM audio selected.");
         bgmLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        bgmLabel->setMinimumWidth(260);
         bgmBrowseButton = new QPushButton("Browse BGM...");
         bgmClearButton = new QPushButton("Clear");
-        bgmLayout->addWidget(new QLabel("BGM Audio:"));
-        bgmLayout->addWidget(bgmLabel);
-        bgmLayout->addWidget(bgmBrowseButton);
-        bgmLayout->addWidget(bgmClearButton);
-        mainLayout->addLayout(bgmLayout);
 
-        auto *windowLayout = new QHBoxLayout;
-        windowLayout->setAlignment(Qt::AlignCenter);
         auto *inwardButton = new QPushButton("< Inward");
         auto *outwardButton = new QPushButton("Outward >");
         windowOffsetSpin = new QSpinBox;
         windowOffsetSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         windowOffsetSpin->setRange(-1000000, 1000000);
-        windowOffsetSpin->setFixedWidth(80);
-        windowLayout->addWidget(new QLabel("Stereo Window Adjust:"));
-        windowLayout->addWidget(inwardButton);
-        windowLayout->addWidget(windowOffsetSpin);
-        windowLayout->addWidget(outwardButton);
-        mainLayout->addLayout(windowLayout);
+        windowOffsetSpin->setFixedWidth(72);
         connect(inwardButton, &QPushButton::clicked, this, [this] { windowOffsetSpin->setValue(windowOffsetSpin->value() - 5); });
         connect(outwardButton, &QPushButton::clicked, this, [this] { windowOffsetSpin->setValue(windowOffsetSpin->value() + 5); });
 
-        auto *borderLayout = new QHBoxLayout;
-        borderLayout->setAlignment(Qt::AlignCenter);
         borderWidthSpin = new QSpinBox;
         borderWidthSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         borderWidthSpin->setRange(0, 500);
-        borderWidthSpin->setFixedWidth(80);
+        borderWidthSpin->setFixedWidth(72);
         borderColorButton = new QPushButton("Color");
-        borderColorButton->setFixedWidth(90);
-        borderLayout->addWidget(new QLabel("Border Width:"));
-        borderLayout->addWidget(borderWidthSpin);
-        borderLayout->addWidget(new QLabel("Border Color:"));
-        borderLayout->addWidget(borderColorButton);
-        mainLayout->addLayout(borderLayout);
+        borderColorButton->setFixedWidth(86);
         updateBorderColorButton();
 
         swapButton = new QPushButton("<-> Swap to Cross-Eye View");
@@ -184,11 +152,35 @@ private:
         startButton->setFont(startFont);
         startButton->setStyleSheet("QPushButton { background: #4CAF50; color: white; padding: 8px 18px; }");
 
-        mainLayout->addWidget(swapButton, 0, Qt::AlignCenter);
-        mainLayout->addWidget(aboutButton, 0, Qt::AlignCenter);
-        mainLayout->addWidget(halfWidthCheck, 0, Qt::AlignCenter);
-        mainLayout->addWidget(anaglyphCheck, 0, Qt::AlignCenter);
-        mainLayout->addWidget(startButton, 0, Qt::AlignCenter);
+        int col = 0;
+        controlsLayout->addWidget(new QLabel("Skip:"), 0, col++, Qt::AlignRight);
+        controlsLayout->addWidget(skipSpin, 0, col++);
+        controlsLayout->addWidget(new QLabel("Crop bottom:"), 0, col++, Qt::AlignRight);
+        controlsLayout->addWidget(cropBottomSpin, 0, col++);
+        controlsLayout->addWidget(trimStartButton, 0, col++);
+        controlsLayout->addWidget(trimStartSpin, 0, col++);
+        controlsLayout->addWidget(trimEndButton, 0, col++);
+        controlsLayout->addWidget(trimEndSpin, 0, col++);
+        controlsLayout->addWidget(new QLabel("Stereo window:"), 0, col++, Qt::AlignRight);
+        controlsLayout->addWidget(inwardButton, 0, col++);
+        controlsLayout->addWidget(windowOffsetSpin, 0, col++);
+        controlsLayout->addWidget(outwardButton, 0, col++);
+        controlsLayout->addWidget(new QLabel("Border:"), 0, col++, Qt::AlignRight);
+        controlsLayout->addWidget(borderWidthSpin, 0, col++);
+        controlsLayout->addWidget(borderColorButton, 0, col++);
+
+        col = 0;
+        controlsLayout->addWidget(new QLabel("BGM:"), 1, col++, Qt::AlignRight);
+        controlsLayout->addWidget(bgmLabel, 1, col++, 1, 5);
+        controlsLayout->addWidget(bgmBrowseButton, 1, col++);
+        controlsLayout->addWidget(bgmClearButton, 1, col++);
+        controlsLayout->addWidget(swapButton, 1, col++);
+        controlsLayout->addWidget(halfWidthCheck, 1, col++, 1, 2);
+        controlsLayout->addWidget(anaglyphCheck, 1, col++, 1, 2);
+        controlsLayout->addWidget(aboutButton, 1, col++);
+        controlsLayout->addWidget(startButton, 1, col++, 1, 2);
+        controlsLayout->setColumnStretch(1, 1);
+        mainLayout->addLayout(controlsLayout);
 
         progressBar = new QProgressBar;
         progressBar->setRange(0, 100);
