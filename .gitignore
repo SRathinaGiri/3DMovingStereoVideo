@@ -1,0 +1,21 @@
+# Build output
+build*/
+dist/
+out/
+
+# Python originals and caches
+*.py
+__pycache__/
+*.pyc
+
+# Local/editor files
+.vs/
+.vscode/
+*.user
+*.suo
+*.tmp
+*.log
+
+# OS files
+Thumbs.db
+Desktop.ini
