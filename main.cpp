@@ -297,6 +297,7 @@ private:
         if (checked) {
             halfWidthCheck->setChecked(false);
         }
+        requestPreview();
     }
 
     void showAbout()
@@ -377,13 +378,18 @@ private:
 
     QSize previewDimensions() const
     {
-        const double aspect = static_cast<double>(originalWidth) / qMax(1, originalHeight);
-        int height1 = 600;
-        int width1 = static_cast<int>(height1 * aspect);
-        int availableImageWidth = (width() / 2) - 25;
+        const int cropBottom = cropBottomSpin ? cropBottomSpin->value() : 0;
+        const int offset = windowOffsetSpin ? qAbs(windowOffsetSpin->value()) : 0;
+        const int borderWidth = borderWidthSpin ? borderWidthSpin->value() : 0;
+        const int adjustedWidth = qMax(1, originalWidth - offset + borderWidth * 2);
+        const int adjustedHeight = qMax(1, originalHeight - cropBottom + borderWidth * 2);
+        const double aspect = static_cast<double>(adjustedWidth) / adjustedHeight;
+        const int height1 = 600;
+        const int width1 = static_cast<int>(height1 * aspect);
+        int availableImageWidth = (anaglyphCheck && anaglyphCheck->isChecked()) ? width() - 50 : (width() / 2) - 25;
         availableImageWidth = qMax(1, availableImageWidth);
-        int width2 = availableImageWidth;
-        int height2 = static_cast<int>(width2 / aspect);
+        const int width2 = availableImageWidth;
+        const int height2 = static_cast<int>(width2 / aspect);
         return (height1 < height2) ? QSize(width1, height1) : QSize(width2, height2);
     }
 
@@ -504,26 +510,22 @@ private:
             return {};
         }
 
-        const QSize size = previewDimensions();
-        image = image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-
         const int cropBottom = cropBottomSpin->value();
-        const int previewCrop = static_cast<int>((static_cast<double>(cropBottom) / originalHeight) * image.height());
-        if (previewCrop > 0 && previewCrop < image.height()) {
-            image = image.copy(0, 0, image.width(), image.height() - previewCrop);
+        if (cropBottom > 0 && cropBottom < image.height()) {
+            image = image.copy(0, 0, image.width(), image.height() - cropBottom);
         }
 
         const int offset = windowOffsetSpin->value();
-        const int previewOffset = qAbs(static_cast<int>((static_cast<double>(offset) / originalWidth) * image.width()));
-        if (previewOffset > 0 && previewOffset < image.width()) {
+        const int sourceOffset = qMin(qAbs(offset), image.width() - 1);
+        if (sourceOffset > 0) {
             if (offset < 0) {
                 image = leftEye
-                    ? image.copy(previewOffset, 0, image.width() - previewOffset, image.height())
-                    : image.copy(0, 0, image.width() - previewOffset, image.height());
+                    ? image.copy(sourceOffset, 0, image.width() - sourceOffset, image.height())
+                    : image.copy(0, 0, image.width() - sourceOffset, image.height());
             } else {
                 image = leftEye
-                    ? image.copy(0, 0, image.width() - previewOffset, image.height())
-                    : image.copy(previewOffset, 0, image.width() - previewOffset, image.height());
+                    ? image.copy(0, 0, image.width() - sourceOffset, image.height())
+                    : image.copy(sourceOffset, 0, image.width() - sourceOffset, image.height());
             }
         }
 
@@ -536,6 +538,9 @@ private:
             image = bordered;
         }
 
+        const QSize size = previewDimensions();
+        image = image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
         return QPixmap::fromImage(image);
     }
 
@@ -543,8 +548,39 @@ private:
     {
         QPixmap placeholder(previewDimensions());
         placeholder.fill(Qt::black);
+        if (anaglyphCheck && anaglyphCheck->isChecked()) {
+            rightImage->setVisible(false);
+            if (!left.isNull() && !right.isNull()) {
+                leftImage->setPixmap(anaglyphPreview(left, right));
+            } else {
+                leftImage->setPixmap(placeholder);
+            }
+            return;
+        }
+        rightImage->setVisible(true);
         leftImage->setPixmap(left.isNull() ? placeholder : left);
         rightImage->setPixmap(right.isNull() ? placeholder : right);
+    }
+
+    QPixmap anaglyphPreview(const QPixmap &left, const QPixmap &right) const
+    {
+        QImage leftImageData = left.toImage().convertToFormat(QImage::Format_RGB32);
+        QImage rightImageData = right.toImage().convertToFormat(QImage::Format_RGB32);
+        if (leftImageData.size() != rightImageData.size()) {
+            rightImageData = rightImageData.scaled(leftImageData.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        }
+
+        QImage output(leftImageData.size(), QImage::Format_RGB32);
+        for (int y = 0; y < output.height(); ++y) {
+            const QRgb *leftLine = reinterpret_cast<const QRgb *>(leftImageData.constScanLine(y));
+            const QRgb *rightLine = reinterpret_cast<const QRgb *>(rightImageData.constScanLine(y));
+            QRgb *outLine = reinterpret_cast<QRgb *>(output.scanLine(y));
+            for (int x = 0; x < output.width(); ++x) {
+                const int red = qGray(leftLine[x]);
+                outLine[x] = qRgb(red, qGreen(rightLine[x]), qBlue(rightLine[x]));
+            }
+        }
+        return QPixmap::fromImage(output);
     }
 
     void startProcessing()
