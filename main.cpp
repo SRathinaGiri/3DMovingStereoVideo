@@ -161,24 +161,27 @@ private:
         controlsLayout->addWidget(trimStartSpin, 0, col++);
         controlsLayout->addWidget(trimEndButton, 0, col++);
         controlsLayout->addWidget(trimEndSpin, 0, col++);
-        controlsLayout->addWidget(new QLabel("Stereo window:"), 0, col++, Qt::AlignRight);
-        controlsLayout->addWidget(inwardButton, 0, col++);
-        controlsLayout->addWidget(windowOffsetSpin, 0, col++);
-        controlsLayout->addWidget(outwardButton, 0, col++);
-        controlsLayout->addWidget(new QLabel("Border:"), 0, col++, Qt::AlignRight);
-        controlsLayout->addWidget(borderWidthSpin, 0, col++);
-        controlsLayout->addWidget(borderColorButton, 0, col++);
 
         col = 0;
-        controlsLayout->addWidget(new QLabel("BGM:"), 1, col++, Qt::AlignRight);
-        controlsLayout->addWidget(bgmLabel, 1, col++, 1, 5);
-        controlsLayout->addWidget(bgmBrowseButton, 1, col++);
-        controlsLayout->addWidget(bgmClearButton, 1, col++);
-        controlsLayout->addWidget(swapButton, 1, col++);
-        controlsLayout->addWidget(halfWidthCheck, 1, col++, 1, 2);
-        controlsLayout->addWidget(anaglyphCheck, 1, col++, 1, 2);
-        controlsLayout->addWidget(aboutButton, 1, col++);
-        controlsLayout->addWidget(startButton, 1, col++, 1, 2);
+        controlsLayout->addWidget(new QLabel("Stereo window:"), 1, col++, Qt::AlignRight);
+        controlsLayout->addWidget(inwardButton, 1, col++);
+        controlsLayout->addWidget(windowOffsetSpin, 1, col++);
+        controlsLayout->addWidget(outwardButton, 1, col++);
+        controlsLayout->addWidget(new QLabel("Border width:"), 1, col++, Qt::AlignRight);
+        controlsLayout->addWidget(borderWidthSpin, 1, col++);
+        controlsLayout->addWidget(new QLabel("Border color:"), 1, col++, Qt::AlignRight);
+        controlsLayout->addWidget(borderColorButton, 1, col++);
+        controlsLayout->addWidget(swapButton, 1, col++, 1, 2);
+
+        col = 0;
+        controlsLayout->addWidget(new QLabel("BGM:"), 2, col++, Qt::AlignRight);
+        controlsLayout->addWidget(bgmLabel, 2, col++, 1, 5);
+        controlsLayout->addWidget(bgmBrowseButton, 2, col++);
+        controlsLayout->addWidget(bgmClearButton, 2, col++);
+        controlsLayout->addWidget(halfWidthCheck, 2, col++, 1, 2);
+        controlsLayout->addWidget(anaglyphCheck, 2, col++, 1, 2);
+        controlsLayout->addWidget(aboutButton, 2, col++);
+        controlsLayout->addWidget(startButton, 2, col++, 1, 2);
         controlsLayout->setColumnStretch(1, 1);
         mainLayout->addLayout(controlsLayout);
 
