@@ -661,6 +661,7 @@ private:
         };
 
         const bool useBgm = !bgmPath.isEmpty();
+        const double bgmVolume = hasAudio ? 0.20 : 1.00;
         QString filter = videoChain("l", trimStartFrame, endFrameForLeft, true) + ";"
             + videoChain("r", startFrameForRight, trimEndFrame, false) + ";";
         if (makeAnaglyph) {
@@ -679,11 +680,12 @@ private:
                 .arg(audioDuration, 0, 'f', 6);
         }
         if (useBgm) {
-            filter += QString(";[1:a]atrim=duration=%1,asetpts=PTS-STARTPTS,volume=0.35[bgm]")
-                .arg(audioDuration, 0, 'f', 6);
+            filter += QString(";[1:a]atrim=duration=%1,asetpts=PTS-STARTPTS,volume=%2[bgm]")
+                .arg(audioDuration, 0, 'f', 6)
+                .arg(bgmVolume, 0, 'f', 2);
         }
         if (hasAudio && useBgm) {
-            filter += ";[srca][bgm]amix=inputs=2:duration=first:dropout_transition=0[a]";
+            filter += ";[srca][bgm]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]";
         } else if (hasAudio) {
             filter += ";[srca]anull[a]";
         } else if (useBgm) {
