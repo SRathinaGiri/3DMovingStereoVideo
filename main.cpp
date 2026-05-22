@@ -32,6 +32,7 @@ private:
     QLabel *leftImage = nullptr;
     QLabel *rightImage = nullptr;
     QSlider *slider = nullptr;
+    QComboBox *orientationCombo = nullptr;
     QSpinBox *skipSpin = nullptr;
     QSpinBox *cropBottomSpin = nullptr;
     QDoubleSpinBox *trimStartSpin = nullptr;
@@ -106,6 +107,10 @@ private:
         controlsLayout->setHorizontalSpacing(10);
         controlsLayout->setVerticalSpacing(6);
 
+        orientationCombo = new QComboBox;
+        orientationCombo->addItems({"Auto", "Portrait", "Landscape"});
+        orientationCombo->setFixedWidth(100);
+
         skipSpin = new QSpinBox;
         skipSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         skipSpin->setRange(0, 1000000);
@@ -156,6 +161,8 @@ private:
         startButton->setStyleSheet("QPushButton { background: #4CAF50; color: white; padding: 8px 18px; }");
 
         int col = 0;
+        controlsLayout->addWidget(new QLabel("Input:"), 0, col++, Qt::AlignRight);
+        controlsLayout->addWidget(orientationCombo, 0, col++);
         controlsLayout->addWidget(new QLabel("Skip:"), 0, col++, Qt::AlignRight);
         controlsLayout->addWidget(skipSpin, 0, col++);
         controlsLayout->addWidget(new QLabel("Crop bottom:"), 0, col++, Qt::AlignRight);
@@ -221,6 +228,7 @@ private:
     void connectSignals()
     {
         connect(slider, &QSlider::valueChanged, this, &StereoCreatorWindow::requestPreview);
+        connect(orientationCombo, &QComboBox::currentIndexChanged, this, &StereoCreatorWindow::onOrientationChanged);
         connect(skipSpin, &QSpinBox::valueChanged, this, &StereoCreatorWindow::onPreviewSettingChanged);
         connect(cropBottomSpin, &QSpinBox::valueChanged, this, &StereoCreatorWindow::onPreviewSettingChanged);
         connect(windowOffsetSpin, &QSpinBox::valueChanged, this, &StereoCreatorWindow::onPreviewSettingChanged);
@@ -241,6 +249,7 @@ private:
     void setControlsEnabled(bool enabled)
     {
         slider->setEnabled(enabled);
+        orientationCombo->setEnabled(enabled);
         skipSpin->setEnabled(enabled);
         cropBottomSpin->setEnabled(enabled);
         borderWidthSpin->setEnabled(enabled);
@@ -335,6 +344,7 @@ private:
 
         inputPath = path;
         fileLabel->setText(QFileInfo(path).fileName());
+        updateDisplayDimensions();
         cropBottomSpin->setRange(0, qMax(0, displayHeight - 3));
         trimStartSpin->setMaximum(duration);
         trimEndSpin->setMaximum(duration);
@@ -385,12 +395,45 @@ private:
             rotationDegrees = static_cast<int>(std::round(displayMatrixMatch.captured(1).toDouble()));
         }
         rotationDegrees = ((rotationDegrees % 360) + 360) % 360;
-        const bool rotatedSideways = rotationDegrees == 90 || rotationDegrees == 270;
-        displayWidth = rotatedSideways ? originalHeight : originalWidth;
-        displayHeight = rotatedSideways ? originalWidth : originalHeight;
+        displayWidth = originalWidth;
+        displayHeight = originalHeight;
         totalFrames = qMax(1, static_cast<int>(std::round(duration * fps)));
         hasAudio = output.contains("Audio:", Qt::CaseInsensitive);
         return true;
+    }
+
+    int effectiveRotation() const
+    {
+        if (orientationCombo && orientationCombo->currentText() == "Landscape") {
+            return 0;
+        }
+        if (orientationCombo && orientationCombo->currentText() == "Portrait") {
+            if (originalHeight > originalWidth) {
+                return 0;
+            }
+            return (rotationDegrees == 90 || rotationDegrees == 270) ? rotationDegrees : 90;
+        }
+        return rotationDegrees;
+    }
+
+    void updateDisplayDimensions()
+    {
+        const int rotation = effectiveRotation();
+        const bool rotatedSideways = rotation == 90 || rotation == 270;
+        displayWidth = rotatedSideways ? originalHeight : originalWidth;
+        displayHeight = rotatedSideways ? originalWidth : originalHeight;
+    }
+
+    QString transposeFilterForRotation() const
+    {
+        const int rotation = effectiveRotation();
+        if (rotation == 90) {
+            return "transpose=1";
+        }
+        if (rotation == 270) {
+            return "transpose=2";
+        }
+        return {};
     }
 
     QSize previewDimensions() const
@@ -445,6 +488,17 @@ private:
 
     void onPreviewSettingChanged()
     {
+        updateSliderBounds();
+        requestPreview();
+    }
+
+    void onOrientationChanged()
+    {
+        updateDisplayDimensions();
+        cropBottomSpin->setRange(0, qMax(0, displayHeight - 3));
+        if (cropBottomSpin->value() >= displayHeight - 2) {
+            cropBottomSpin->setValue(qMax(0, displayHeight - 3));
+        }
         updateSliderBounds();
         requestPreview();
     }
@@ -515,6 +569,7 @@ private:
             "-hide_banner",
             "-loglevel", "error",
             "-ss", QString::number(frameIndex / fps, 'f', 6),
+            "-noautorotate",
             "-i", inputPath,
             "-frames:v", "1",
             outPath
@@ -525,6 +580,15 @@ private:
         QImage image(outPath);
         if (image.isNull()) {
             return {};
+        }
+
+        const int rotation = effectiveRotation();
+        if (rotation == 90) {
+            image = image.transformed(QTransform().rotate(90), Qt::SmoothTransformation);
+        } else if (rotation == 270) {
+            image = image.transformed(QTransform().rotate(-90), Qt::SmoothTransformation);
+        } else if (rotation == 180) {
+            image = image.transformed(QTransform().rotate(180), Qt::SmoothTransformation);
         }
 
         const int cropBottom = cropBottomSpin->value();
@@ -646,9 +710,13 @@ private:
         const bool makeAnaglyph = anaglyphCheck->isChecked();
         const bool makeHalfWidth = halfWidthCheck->isChecked() && !makeAnaglyph;
         const QString borderColorValue = ffmpegColor(borderColor);
+        const QString transposeFilter = transposeFilterForRotation();
 
         auto videoChain = [&](const QString &label, int start, int end, bool leftEye) {
             QString chain = QString("[0:v]select='between(n,%1,%2)',setpts=PTS-STARTPTS").arg(start).arg(end - 1);
+            if (!transposeFilter.isEmpty()) {
+                chain += "," + transposeFilter;
+            }
             if (cropBottom > 0) {
                 chain += QString(",crop=iw:trunc((ih-%1)/2)*2:0:0").arg(cropBottom);
             }
@@ -722,6 +790,7 @@ private:
         QStringList args = {
             "-progress", "pipe:1",
             "-y",
+            "-noautorotate",
             "-i", inputPath
         };
         if (useBgm) {
