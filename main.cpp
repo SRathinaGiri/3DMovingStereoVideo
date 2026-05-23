@@ -30,6 +30,7 @@ public:
 
 private:
     QLabel *fileLabel = nullptr;
+    QWidget *previewPane = nullptr;
     QLabel *leftImage = nullptr;
     QLabel *rightImage = nullptr;
     QSlider *slider = nullptr;
@@ -94,17 +95,19 @@ private:
         mainLayout->addLayout(topLayout);
         connect(browseButton, &QPushButton::clicked, this, &StereoCreatorWindow::selectFile);
 
-        auto *previewLayout = new QHBoxLayout;
+        previewPane = new QWidget;
+        auto *previewLayout = new QHBoxLayout(previewPane);
+        previewLayout->setContentsMargins(0, 0, 0, 0);
         previewLayout->setAlignment(Qt::AlignCenter);
         leftImage = makePreviewLabel();
         rightImage = makePreviewLabel();
         previewLayout->addWidget(leftImage);
         previewLayout->addWidget(rightImage);
-        mainLayout->addLayout(previewLayout, 1);
+        mainLayout->addWidget(previewPane, 1);
 
         auto *metadataGroup = new QGroupBox("Video Info");
         auto *metadataLayout = new QVBoxLayout(metadataGroup);
-        metadataLabel = new QLabel("Input: - | Adjusted eye: - | Output: -");
+        metadataLabel = new QLabel("(W x H) Input: - | Adjusted eye: - | Output: -");
         metadataLabel->setAlignment(Qt::AlignCenter);
         metadataLayout->addWidget(metadataLabel);
         mainLayout->addWidget(metadataGroup);
@@ -370,7 +373,7 @@ private:
         } else if (scaleMode == "Width" || scaleMode == "Height") {
             scaleText += "px";
         }
-        metadataLabel->setText(QString("Input: %1 x %2 | Adjusted eye: %3 x %4 | Output: %5 x %6 | Final: %7 x %8 | Scale: %9")
+        metadataLabel->setText(QString("(W x H) Input: %1 x %2 | Adjusted eye: %3 x %4 | Output: %5 x %6 | Final: %7 x %8 | Scale: %9")
             .arg(displayWidth)
             .arg(displayHeight)
             .arg(eye.width())
@@ -636,7 +639,11 @@ private:
         const int adjustedWidth = qMax(1, displayWidth - offset + borderWidth * 2);
         const int adjustedHeight = qMax(1, displayHeight - cropBottom + borderWidth * 2);
         const double aspect = static_cast<double>(adjustedWidth) / adjustedHeight;
-        const int height1 = 600;
+        int availablePreviewHeight = 600;
+        if (previewPane && previewPane->height() > 40) {
+            availablePreviewHeight = qMax(40, previewPane->height() - 10);
+        }
+        const int height1 = availablePreviewHeight;
         const int width1 = static_cast<int>(height1 * aspect);
         int availableImageWidth = (anaglyphCheck && anaglyphCheck->isChecked()) ? width() - 50 : (width() / 2) - 25;
         availableImageWidth = qMax(1, availableImageWidth);
