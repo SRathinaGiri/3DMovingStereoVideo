@@ -128,12 +128,12 @@ private:
         skipSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         skipSpin->setRange(0, 1000000);
         skipSpin->setValue(5);
-        skipSpin->setFixedWidth(76);
+        skipSpin->setFixedWidth(126);
 
         cropBottomSpin = new QSpinBox;
         cropBottomSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         cropBottomSpin->setRange(0, 1000000);
-        cropBottomSpin->setFixedWidth(82);
+        cropBottomSpin->setFixedWidth(132);
         trimStartButton = new QPushButton("Cut from front");
         trimEndButton = new QPushButton("Cut from end");
         trimStartSpin = makeSecondsSpin();
@@ -148,14 +148,14 @@ private:
         windowOffsetSpin = new QSpinBox;
         windowOffsetSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         windowOffsetSpin->setRange(-1000000, 1000000);
-        windowOffsetSpin->setFixedWidth(72);
+        windowOffsetSpin->setFixedWidth(122);
         connect(inwardButton, &QPushButton::clicked, this, [this] { windowOffsetSpin->setValue(windowOffsetSpin->value() - 5); });
         connect(outwardButton, &QPushButton::clicked, this, [this] { windowOffsetSpin->setValue(windowOffsetSpin->value() + 5); });
 
         borderWidthSpin = new QSpinBox;
         borderWidthSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         borderWidthSpin->setRange(0, 500);
-        borderWidthSpin->setFixedWidth(72);
+        borderWidthSpin->setFixedWidth(122);
         borderColorButton = new QPushButton("Color");
         borderColorButton->setFixedWidth(86);
         updateBorderColorButton();
@@ -232,7 +232,7 @@ private:
         spin->setRange(0.0, 10000000.0);
         spin->setDecimals(3);
         spin->setSingleStep(0.1);
-        spin->setFixedWidth(110);
+        spin->setFixedWidth(160);
         return spin;
     }
 
@@ -412,6 +412,7 @@ private:
         valueSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         valueSpin->setRange(1, 100000);
         valueSpin->setValue(scaleValue);
+        valueSpin->setFixedWidth(140);
         auto *hintLabel = new QLabel;
         auto updateHint = [=] {
             const QString mode = modeCombo->currentText();
