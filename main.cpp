@@ -160,7 +160,7 @@ private:
         borderColorButton->setFixedWidth(86);
         updateBorderColorButton();
 
-        swapButton = new QPushButton("<-> Swap to Cross-Eye View");
+        swapButton = new QPushButton("Swap Views");
         aboutButton = new QPushButton("About");
         configButton = new QPushButton("Config...");
         halfWidthCheck = new QCheckBox("Half-Width SBS");
@@ -728,7 +728,6 @@ private:
     void toggleSwap()
     {
         isSwapped = !isSwapped;
-        swapButton->setText(isSwapped ? "<-> Swap to Parallel View" : "<-> Swap to Cross-Eye View");
         updateMetadata();
         requestPreview();
     }
