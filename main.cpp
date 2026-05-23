@@ -411,9 +411,12 @@ private:
             if (originalHeight > originalWidth) {
                 return 0;
             }
-            return (rotationDegrees == 90 || rotationDegrees == 270) ? rotationDegrees : 90;
+            if (rotationDegrees == 90 || rotationDegrees == 270) {
+                return (360 - rotationDegrees) % 360;
+            }
+            return 270;
         }
-        return rotationDegrees;
+        return (360 - rotationDegrees) % 360;
     }
 
     void updateDisplayDimensions()
