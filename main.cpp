@@ -20,6 +20,7 @@ public:
         buildUi();
         connectSignals();
         setControlsEnabled(false);
+        updateMetadata();
         updatePreviewImages(QPixmap(), QPixmap());
 
         previewTimer.setSingleShot(true);
@@ -40,18 +41,18 @@ private:
     QPushButton *trimStartButton = nullptr;
     QPushButton *trimEndButton = nullptr;
     QLabel *bgmLabel = nullptr;
-    QPushButton *bgmBrowseButton = nullptr;
-    QPushButton *bgmClearButton = nullptr;
     QSpinBox *windowOffsetSpin = nullptr;
     QSpinBox *borderWidthSpin = nullptr;
     QPushButton *borderColorButton = nullptr;
     QPushButton *swapButton = nullptr;
     QPushButton *aboutButton = nullptr;
+    QPushButton *configButton = nullptr;
     QCheckBox *halfWidthCheck = nullptr;
     QCheckBox *anaglyphCheck = nullptr;
     QPushButton *startButton = nullptr;
     QProgressBar *progressBar = nullptr;
     QLabel *statusLabel = nullptr;
+    QLabel *metadataLabel = nullptr;
 
     QTimer previewTimer;
     QProcess *encodingProcess = nullptr;
@@ -61,7 +62,9 @@ private:
     QString bgmPath;
     QString currentOutputPath;
     QString ffmpegPath;
+    QString scaleMode = "None";
     int totalFrames = 0;
+    int scaleValue = 100;
     double fps = 30.0;
     double duration = 0.0;
     int originalWidth = 16;
@@ -99,6 +102,13 @@ private:
         previewLayout->addWidget(rightImage);
         mainLayout->addLayout(previewLayout, 1);
 
+        auto *metadataGroup = new QGroupBox("Video Info");
+        auto *metadataLayout = new QVBoxLayout(metadataGroup);
+        metadataLabel = new QLabel("Input: - | Adjusted eye: - | Output: -");
+        metadataLabel->setAlignment(Qt::AlignCenter);
+        metadataLayout->addWidget(metadataLabel);
+        mainLayout->addWidget(metadataGroup);
+
         slider = new QSlider(Qt::Horizontal);
         slider->setRange(0, 100);
         mainLayout->addWidget(slider);
@@ -129,8 +139,6 @@ private:
         bgmLabel = new QLabel("No BGM audio selected.");
         bgmLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         bgmLabel->setMinimumWidth(260);
-        bgmBrowseButton = new QPushButton("Browse BGM...");
-        bgmClearButton = new QPushButton("Clear");
 
         auto *inwardButton = new QPushButton("< Inward");
         auto *outwardButton = new QPushButton("Outward >");
@@ -151,6 +159,7 @@ private:
 
         swapButton = new QPushButton("<-> Swap to Cross-Eye View");
         aboutButton = new QPushButton("About");
+        configButton = new QPushButton("Config...");
         halfWidthCheck = new QCheckBox("Half-Width SBS");
         anaglyphCheck = new QCheckBox("Anaglyph");
         startButton = new QPushButton("Create Stereo Video");
@@ -187,11 +196,10 @@ private:
         controlsLayout->addWidget(new QLabel("BGM:"), 2, col++, Qt::AlignRight);
         controlsLayout->addWidget(bgmLabel, 2, col, 1, 4);
         col += 4;
-        controlsLayout->addWidget(bgmBrowseButton, 2, col++);
-        controlsLayout->addWidget(bgmClearButton, 2, col++);
         controlsLayout->addWidget(halfWidthCheck, 2, col++);
         controlsLayout->addWidget(anaglyphCheck, 2, col++);
         controlsLayout->addWidget(aboutButton, 2, col++);
+        controlsLayout->addWidget(configButton, 2, col++);
         controlsLayout->addWidget(startButton, 2, col, 1, 2);
         col += 2;
         controlsLayout->setColumnStretch(1, 1);
@@ -237,11 +245,11 @@ private:
         connect(trimEndSpin, &QDoubleSpinBox::valueChanged, this, &StereoCreatorWindow::onTrimChanged);
         connect(trimStartButton, &QPushButton::clicked, this, &StereoCreatorWindow::setTrimStartFromSlider);
         connect(trimEndButton, &QPushButton::clicked, this, &StereoCreatorWindow::setTrimEndFromSlider);
-        connect(bgmBrowseButton, &QPushButton::clicked, this, &StereoCreatorWindow::selectBgmFile);
-        connect(bgmClearButton, &QPushButton::clicked, this, &StereoCreatorWindow::clearBgmFile);
         connect(borderColorButton, &QPushButton::clicked, this, &StereoCreatorWindow::selectBorderColor);
         connect(swapButton, &QPushButton::clicked, this, &StereoCreatorWindow::toggleSwap);
         connect(aboutButton, &QPushButton::clicked, this, &StereoCreatorWindow::showAbout);
+        connect(configButton, &QPushButton::clicked, this, &StereoCreatorWindow::showConfigDialog);
+        connect(halfWidthCheck, &QCheckBox::toggled, this, &StereoCreatorWindow::onPreviewSettingChanged);
         connect(anaglyphCheck, &QCheckBox::toggled, this, &StereoCreatorWindow::onAnaglyphToggled);
         connect(startButton, &QPushButton::clicked, this, &StereoCreatorWindow::startProcessing);
     }
@@ -254,6 +262,7 @@ private:
         cropBottomSpin->setEnabled(enabled);
         borderWidthSpin->setEnabled(enabled);
         borderColorButton->setEnabled(enabled);
+        configButton->setEnabled(enabled);
         trimStartSpin->setEnabled(enabled);
         trimEndSpin->setEnabled(enabled);
         trimStartButton->setEnabled(enabled);
@@ -269,13 +278,191 @@ private:
             return;
         }
         bgmPath = path;
-        bgmLabel->setText(QFileInfo(path).fileName());
+        updateBgmLabel();
     }
 
     void clearBgmFile()
     {
         bgmPath.clear();
-        bgmLabel->setText("No BGM audio selected.");
+        updateBgmLabel();
+    }
+
+    void updateBgmLabel()
+    {
+        bgmLabel->setText(bgmPath.isEmpty() ? "No BGM audio selected." : QFileInfo(bgmPath).fileName());
+    }
+
+    QSize adjustedEyeSize() const
+    {
+        int eyeWidth = qMax(1, displayWidth - qAbs(windowOffsetSpin ? windowOffsetSpin->value() : 0));
+        int eyeHeight = qMax(1, displayHeight - (cropBottomSpin ? cropBottomSpin->value() : 0));
+        if (halfWidthCheck && halfWidthCheck->isChecked() && !(anaglyphCheck && anaglyphCheck->isChecked())) {
+            eyeWidth = qMax(1, eyeWidth / 2);
+        }
+        const int borderWidth = borderWidthSpin ? borderWidthSpin->value() : 0;
+        eyeWidth += borderWidth * 2;
+        eyeHeight += borderWidth * 2;
+        return QSize(makeEven(eyeWidth), makeEven(eyeHeight));
+    }
+
+    QSize baseOutputSize() const
+    {
+        const QSize eye = adjustedEyeSize();
+        if (anaglyphCheck && anaglyphCheck->isChecked()) {
+            return eye;
+        }
+        return QSize(makeEven(eye.width() * 2), eye.height());
+    }
+
+    QSize scaledOutputSize() const
+    {
+        QSize base = baseOutputSize();
+        if (scaleMode == "Percent") {
+            const double factor = scaleValue / 100.0;
+            return QSize(makeEven(static_cast<int>(std::round(base.width() * factor))),
+                         makeEven(static_cast<int>(std::round(base.height() * factor))));
+        }
+        if (scaleMode == "Width") {
+            const int width = makeEven(scaleValue);
+            const int height = makeEven(static_cast<int>(std::round(width * (static_cast<double>(base.height()) / base.width()))));
+            return QSize(width, height);
+        }
+        if (scaleMode == "Height") {
+            const int height = makeEven(scaleValue);
+            const int width = makeEven(static_cast<int>(std::round(height * (static_cast<double>(base.width()) / base.height()))));
+            return QSize(width, height);
+        }
+        return base;
+    }
+
+    QString finalScaleFilter() const
+    {
+        if (scaleMode == "Percent") {
+            return QString("scale=trunc(iw*%1/100/2)*2:trunc(ih*%1/100/2)*2").arg(scaleValue);
+        }
+        if (scaleMode == "Width") {
+            return QString("scale=%1:-2").arg(makeEven(scaleValue));
+        }
+        if (scaleMode == "Height") {
+            return QString("scale=-2:%1").arg(makeEven(scaleValue));
+        }
+        return {};
+    }
+
+    int makeEven(int value) const
+    {
+        return qMax(2, value - (value % 2));
+    }
+
+    void updateMetadata()
+    {
+        if (!metadataLabel) {
+            return;
+        }
+        const QSize eye = adjustedEyeSize();
+        const QSize base = baseOutputSize();
+        const QSize scaled = scaledOutputSize();
+        QString scaleText = scaleMode == "None"
+            ? "none"
+            : QString("%1 %2").arg(scaleMode).arg(scaleValue);
+        if (scaleMode == "Percent") {
+            scaleText += "%";
+        } else if (scaleMode == "Width" || scaleMode == "Height") {
+            scaleText += "px";
+        }
+        metadataLabel->setText(QString("Input: %1 x %2 | Adjusted eye: %3 x %4 | Output: %5 x %6 | Final: %7 x %8 | Scale: %9")
+            .arg(displayWidth)
+            .arg(displayHeight)
+            .arg(eye.width())
+            .arg(eye.height())
+            .arg(base.width())
+            .arg(base.height())
+            .arg(scaled.width())
+            .arg(scaled.height())
+            .arg(scaleText));
+    }
+
+    void showConfigDialog()
+    {
+        QDialog dialog(this);
+        dialog.setWindowTitle("Config");
+        auto *layout = new QVBoxLayout(&dialog);
+
+        auto *bgmGroup = new QGroupBox("BGM Audio");
+        auto *bgmLayout = new QGridLayout(bgmGroup);
+        auto *dialogBgmLabel = new QLabel(bgmPath.isEmpty() ? "No BGM audio selected." : QFileInfo(bgmPath).fileName());
+        dialogBgmLabel->setMinimumWidth(360);
+        auto *browseButton = new QPushButton("Browse...");
+        auto *clearButton = new QPushButton("Clear");
+        bgmLayout->addWidget(new QLabel("File:"), 0, 0, Qt::AlignRight);
+        bgmLayout->addWidget(dialogBgmLabel, 0, 1);
+        bgmLayout->addWidget(browseButton, 0, 2);
+        bgmLayout->addWidget(clearButton, 0, 3);
+        layout->addWidget(bgmGroup);
+
+        auto *scaleGroup = new QGroupBox("Output Scaling");
+        auto *scaleLayout = new QGridLayout(scaleGroup);
+        auto *modeCombo = new QComboBox;
+        modeCombo->addItems({"None", "Percent", "Width", "Height"});
+        modeCombo->setCurrentText(scaleMode);
+        auto *valueSpin = new QSpinBox;
+        valueSpin->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        valueSpin->setRange(1, 100000);
+        valueSpin->setValue(scaleValue);
+        auto *hintLabel = new QLabel;
+        auto updateHint = [=] {
+            const QString mode = modeCombo->currentText();
+            valueSpin->setSuffix("");
+            if (mode == "None") {
+                valueSpin->setEnabled(false);
+                hintLabel->setText("No final scaling.");
+            } else if (mode == "Percent") {
+                valueSpin->setEnabled(true);
+                valueSpin->setSuffix("%");
+                hintLabel->setText("Scales final output by percentage.");
+            } else {
+                valueSpin->setEnabled(true);
+                valueSpin->setSuffix(" px");
+                hintLabel->setText(mode == "Width" ? "Height is calculated automatically." : "Width is calculated automatically.");
+            }
+        };
+        connect(modeCombo, &QComboBox::currentTextChanged, &dialog, updateHint);
+        updateHint();
+        scaleLayout->addWidget(new QLabel("Mode:"), 0, 0, Qt::AlignRight);
+        scaleLayout->addWidget(modeCombo, 0, 1);
+        scaleLayout->addWidget(new QLabel("Value:"), 0, 2, Qt::AlignRight);
+        scaleLayout->addWidget(valueSpin, 0, 3);
+        scaleLayout->addWidget(hintLabel, 1, 1, 1, 3);
+        layout->addWidget(scaleGroup);
+
+        connect(browseButton, &QPushButton::clicked, &dialog, [this, dialogBgmLabel] {
+            const QString path = QFileDialog::getOpenFileName(
+                this, "Select BGM Audio File", QString(), "Audio Files (*.mp3 *.wav *.m4a *.aac *.flac *.ogg);;All files (*.*)");
+            if (path.isEmpty()) {
+                return;
+            }
+            bgmPath = path;
+            dialogBgmLabel->setText(QFileInfo(path).fileName());
+        });
+        connect(clearButton, &QPushButton::clicked, &dialog, [this, dialogBgmLabel] {
+            bgmPath.clear();
+            dialogBgmLabel->setText("No BGM audio selected.");
+        });
+
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        layout->addWidget(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+        const QString oldBgmPath = bgmPath;
+        if (dialog.exec() == QDialog::Accepted) {
+            scaleMode = modeCombo->currentText();
+            scaleValue = valueSpin->value();
+        } else {
+            bgmPath = oldBgmPath;
+        }
+        updateBgmLabel();
+        updateMetadata();
     }
 
     void updateBorderColorButton()
@@ -309,6 +496,7 @@ private:
         if (checked) {
             halfWidthCheck->setChecked(false);
         }
+        updateMetadata();
         requestPreview();
     }
 
@@ -350,6 +538,7 @@ private:
         trimEndSpin->setMaximum(duration);
         setControlsEnabled(true);
         updateSliderBounds();
+        updateMetadata();
         requestPreview();
     }
 
@@ -492,6 +681,7 @@ private:
     void onPreviewSettingChanged()
     {
         updateSliderBounds();
+        updateMetadata();
         requestPreview();
     }
 
@@ -503,6 +693,7 @@ private:
             cropBottomSpin->setValue(qMax(0, displayHeight - 3));
         }
         updateSliderBounds();
+        updateMetadata();
         requestPreview();
     }
 
@@ -530,6 +721,7 @@ private:
     {
         isSwapped = !isSwapped;
         swapButton->setText(isSwapped ? "<-> Swap to Parallel View" : "<-> Swap to Cross-Eye View");
+        updateMetadata();
         requestPreview();
     }
 
@@ -685,6 +877,19 @@ private:
             return;
         }
 
+        QString chosenPath = QFileDialog::getSaveFileName(
+            this,
+            "Save Stereo Video As",
+            suggestedOutputPath(trimStartFrame, trimEndFrame),
+            "MP4 Video (*.mp4);;All files (*.*)");
+        if (chosenPath.isEmpty()) {
+            return;
+        }
+        if (QFileInfo(chosenPath).suffix().isEmpty()) {
+            chosenPath += ".mp4";
+        }
+        currentOutputPath = chosenPath;
+
         startButton->setEnabled(false);
         startButton->setText("Processing...");
         progressBar->setValue(0);
@@ -702,6 +907,24 @@ private:
         encodingProcess->start();
     }
 
+    QString suggestedOutputPath(int trimStartFrame, int trimEndFrame) const
+    {
+        const int cropBottom = cropBottomSpin->value();
+        const int borderWidth = borderWidthSpin->value();
+        const bool makeAnaglyph = anaglyphCheck->isChecked();
+        const bool makeHalfWidth = halfWidthCheck->isChecked() && !makeAnaglyph;
+
+        const QFileInfo info(inputPath);
+        const QString suffix = QString("%1%2%3%4%5%6")
+            .arg(cropBottom > 0 ? QString("_CropB%1").arg(cropBottom) : QString())
+            .arg((trimStartFrame || trimEndFrame != totalFrames) ? QString("_Trim%1-%2").arg(trimStartFrame).arg(trimEndFrame) : QString())
+            .arg(borderWidth > 0 ? QString("_Border%1").arg(borderWidth) : QString())
+            .arg(makeHalfWidth ? "_Half-SBS" : "")
+            .arg(makeAnaglyph ? "_Anaglyph" : "")
+            .arg((scaleMode != "None" ? QString("_Scale%1%2").arg(scaleMode).arg(scaleValue) : QString()) + (isSwapped ? "_X" : ""));
+        return info.dir().filePath(info.completeBaseName() + "_3D_Stereo" + suffix + ".mp4");
+    }
+
     QStringList buildFfmpegArguments(int trimStartFrame, int trimEndFrame)
     {
         const int framesToSkip = skipSpin->value();
@@ -714,6 +937,8 @@ private:
         const bool makeHalfWidth = halfWidthCheck->isChecked() && !makeAnaglyph;
         const QString borderColorValue = ffmpegColor(borderColor);
         const QString transposeFilter = transposeFilterForRotation();
+        const QString scaleFilter = finalScaleFilter();
+        const QString composedLabel = scaleFilter.isEmpty() ? "v" : "pre";
 
         auto videoChain = [&](const QString &label, int start, int end, bool leftEye) {
             QString chain = QString("[0:v]select='between(n,%1,%2)',setpts=PTS-STARTPTS").arg(start).arg(end - 1);
@@ -754,10 +979,13 @@ private:
             + videoChain("r", startFrameForRight, trimEndFrame, false) + ";";
         if (makeAnaglyph) {
             filter += isSwapped
-                ? "[r][l]hstack[sbs];[sbs]stereo3d=sbsl:arcd[v]"
-                : "[l][r]hstack[sbs];[sbs]stereo3d=sbsl:arcd[v]";
+                ? QString("[r][l]hstack[sbs];[sbs]stereo3d=sbsl:arcd[%1]").arg(composedLabel)
+                : QString("[l][r]hstack[sbs];[sbs]stereo3d=sbsl:arcd[%1]").arg(composedLabel);
         } else {
-            filter += isSwapped ? "[r][l]hstack[v]" : "[l][r]hstack[v]";
+            filter += isSwapped ? QString("[r][l]hstack[%1]").arg(composedLabel) : QString("[l][r]hstack[%1]").arg(composedLabel);
+        }
+        if (!scaleFilter.isEmpty()) {
+            filter += QString(";[pre]%1[v]").arg(scaleFilter);
         }
 
         const double audioDuration = expectedOutputFrames / fps;
@@ -779,16 +1007,6 @@ private:
         } else if (useBgm) {
             filter += ";[bgm]anull[a]";
         }
-
-        const QFileInfo info(inputPath);
-        const QString suffix = QString("%1%2%3%4%5%6")
-            .arg(cropBottom > 0 ? QString("_CropB%1").arg(cropBottom) : QString())
-            .arg((trimStartFrame || trimEndFrame != totalFrames) ? QString("_Trim%1-%2").arg(trimStartFrame).arg(trimEndFrame) : QString())
-            .arg(borderWidth > 0 ? QString("_Border%1").arg(borderWidth) : QString())
-            .arg(makeHalfWidth ? "_Half-SBS" : "")
-            .arg(makeAnaglyph ? "_Anaglyph" : "")
-            .arg(isSwapped ? "_X" : "");
-        currentOutputPath = info.dir().filePath(info.completeBaseName() + "_3D_Stereo" + suffix + ".mp4");
 
         QStringList args = {
             "-progress", "pipe:1",
