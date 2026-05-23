@@ -510,7 +510,7 @@ private:
             this,
             "About 3D Moving Stereo Video Creator",
             "<h3>3D Moving Stereo Video Creator</h3>"
-            "<p><b>Version:</b> 1.0<br>"
+            "<p><b>Version:</b> 1.1<br>"
             "<b>Author:</b> Rathinagiri Subbiah</p>"
             "<p>This software converts suitable moving-camera video into side-by-side 3D stereo video by using two frames separated by a configurable frame skip.</p>"
             "<p>It is mainly intended for video captured from a moving train or car while keeping the camera steady, without horizontal shifting or tilting left or right. With stable forward or sideways motion, skipped frames can simulate a 3D camera effect when there are not many fast moving objects in the scene.</p>"

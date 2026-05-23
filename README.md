@@ -9,15 +9,23 @@ It is mainly intended for video captured from a moving train or car while the ca
 ## Features
 
 - Side-by-side preview of left and right eye frames.
-- Configurable frame skip.
-- Front and end trimming.
+- Anaglyph preview when anaglyph output is enabled.
+- Configurable frame skip for generating the left/right eye separation.
+- Input orientation control: `Auto`, `Portrait`, and `Landscape`.
+- Front and end trimming with frame-slider shortcuts.
 - Bottom crop.
 - Stereo window inward/outward adjustment.
-- Parallel and cross-eye side-by-side output.
+- `Swap Views` control for switching left/right eye order.
+- Full side-by-side output.
 - Half-width SBS output for 3D TVs.
 - Red/cyan anaglyph output.
 - Optional border with configurable width and color.
-- Optional BGM audio file, looped and trimmed to the exact output duration.
+- Video info panel showing `(W x H)` input, adjusted eye, output, final scaled size, and scaling mode.
+- Save As prompt before export, with a generated default filename.
+- Config dialog for BGM and output scaling.
+- Optional BGM audio replacement. If a BGM file is selected, it replaces the source audio.
+- BGM is looped and trimmed to the exact output duration.
+- Final output scaling by percent, target width, or target height.
 - US-English numeric formatting independent of Windows regional settings.
 
 ## Requirement
@@ -39,7 +47,10 @@ $env:Path='D:\Qt\6.11.0\mingw_64\bin;D:\Qt\Tools\mingw1310_64\bin;D:\Qt\Tools\Ni
 & 'D:\Qt\6.11.0\mingw_64\bin\windeployqt.exe' --release .\build-qt\3DMovingStereo.exe
 ```
 
+## Release Package
+
+The Windows release zip contains `3DMovingStereo.exe` and the required Qt runtime DLLs/plugins. FFmpeg is not bundled; install FFmpeg separately and keep it in `PATH`.
+
 ## License
 
 MIT License. See [LICENSE](LICENSE).
-
